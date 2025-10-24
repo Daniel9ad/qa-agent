@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { LayoutDashboard, FileText, GitBranch, BarChart3, LogOut } from "lucide-react";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
@@ -16,14 +17,21 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
-  { icon: FileText, label: "Contexto de Vistas", id: "context" },
-  { icon: GitBranch, label: "Flujos de Prueba", id: "flows" },
-  { icon: BarChart3, label: "Resultados", id: "results" },
+  { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", path: "/" },
+  { icon: FileText, label: "Contexto de Vistas", id: "context", path: "/context" },
+  { icon: GitBranch, label: "Flujos de Prueba", id: "flows", path: "/flows" },
+  { icon: BarChart3, label: "Resultados", id: "results", path: "/results" },
 ];
 
 export function Sidebar({ projects, activeProjectId, onProjectChange, onProjectCreated }: SidebarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [activeNav, setActiveNav] = useState("dashboard");
+
+  const handleNavClick = (item: typeof navItems[0]) => {
+    setActiveNav(item.id);
+    router.push(item.path);
+  };
 
   return (
     <div className="w-[280px] h-screen bg-[#0F1E19] flex flex-col overflow-hidden">
@@ -97,12 +105,12 @@ export function Sidebar({ projects, activeProjectId, onProjectChange, onProjectC
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeNav === item.id;
+              const isActive = pathname === item.path;
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => handleNavClick(item)}
                   className={`w-full rounded-md p-3 flex items-center gap-3 transition-colors relative ${
                     isActive
                       ? "bg-[#1F3D32] text-[#E5F5ED]"
