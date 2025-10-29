@@ -1,0 +1,3 @@
+export const ROUTE_CREATION_TOOL = "Crea una nueva ruta (route) para un proyecto específico. Una ruta representa una URL de una aplicación web con su estado de exploración y descripción. Útil para registrar y organizar las rutas de un proyecto web.";
+export const ROUTE_LIST_TOOL = "Lista las rutas de un proyecto específico. Útil para ver todas las rutas registradas, filtrar por estado de exploración, o verificar qué rutas ya existen.";
+export const ROUTE_UPDATE_TOOL = "Actualiza la información de una ruta existente. Útil para marcar una ruta como explorada, actualizar su descripción, o modificar su URL.";

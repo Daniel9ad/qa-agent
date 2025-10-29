@@ -46,8 +46,17 @@ const ProjectSchema = new Schema<IProject>(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual para obtener las rutas del proyecto
+ProjectSchema.virtual('routes', {
+  ref: 'Route',
+  localField: '_id',
+  foreignField: 'projectId',
+});
 
 const Project = models.Project || mongoose.model<IProject>('Project', ProjectSchema);
 

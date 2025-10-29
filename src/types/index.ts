@@ -7,6 +7,15 @@ export interface Project {
   isActive?: boolean;
 }
 
+export interface Route {
+  _id: string;
+  projectId: string;
+  url: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardStats {
   totalTests: number;
   testsChange: number;

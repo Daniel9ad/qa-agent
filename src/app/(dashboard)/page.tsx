@@ -3,6 +3,7 @@
 import { Calendar } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Button } from "@/components/ui/button";
+import { useAppSelector } from "@/hooks/use-store";
 
 // Mock data - replace with real data later
 const mockStats = {
@@ -17,12 +18,14 @@ const mockStats = {
 };
 
 export default function DashboardPage() {
+  const { selectedProject } = useAppSelector((state) => state.project);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header Bar */}
       <div className="bg-[#0F1E19] h-[72px] flex items-center justify-between px-10">
         <h1 className="text-2xl font-semibold text-[#E5F5ED]">
-          Dashboard - miapp.com
+          Dashboard - {selectedProject?.name || "Sin proyecto"}
         </h1>
         
         <Button
@@ -36,32 +39,69 @@ export default function DashboardPage() {
 
       {/* Content Area */}
       <div className="flex-1 p-10 overflow-auto">
-        {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
-          <StatsCard
-            title="Total de Pruebas"
-            value={mockStats.totalTests}
-            change={mockStats.testsChange}
-          />
-          
-          <StatsCard
-            title="Tasa de Éxito"
-            value={mockStats.successRate}
-            change={mockStats.successRateChange}
-          />
-          
-          <StatsCard
-            title="Tiempo Promedio"
-            value={mockStats.avgDuration}
-            change={mockStats.avgDurationChange}
-          />
-          
-          <StatsCard
-            title="Flujos Activos"
-            value={mockStats.activeFlows}
-            subtitle={`de ${mockStats.totalFlows} configurados`}
-          />
-        </div>
+        {selectedProject ? (
+          <>
+            {/* Stats Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
+              <StatsCard
+                title="Total de Pruebas"
+                value={mockStats.totalTests}
+                change={mockStats.testsChange}
+              />
+              
+              <StatsCard
+                title="Tasa de Éxito"
+                value={mockStats.successRate}
+                change={mockStats.successRateChange}
+              />
+              
+              <StatsCard
+                title="Tiempo Promedio"
+                value={mockStats.avgDuration}
+                change={mockStats.avgDurationChange}
+              />
+              
+              <StatsCard
+                title="Flujos Activos"
+                value={mockStats.activeFlows}
+                subtitle={`de ${mockStats.totalFlows} configurados`}
+              />
+            </div>
+
+            {/* Project Info */}
+            <div className="bg-[#0F1E19] rounded-xl p-6 mb-6">
+              <h3 className="text-lg font-semibold text-[#E5F5ED] mb-4">
+                Información del Proyecto
+              </h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-[#6B7F77]">URL:</span>
+                  <span className="text-[#9CA8A3] ml-2">{selectedProject.url}</span>
+                </div>
+                <div>
+                  <span className="text-[#6B7F77]">Vistas:</span>
+                  <span className="text-[#9CA8A3] ml-2">{selectedProject.viewsCount}</span>
+                </div>
+                <div>
+                  <span className="text-[#6B7F77]">Flujos:</span>
+                  <span className="text-[#9CA8A3] ml-2">{selectedProject.flowsCount}</span>
+                </div>
+                <div>
+                  <span className="text-[#6B7F77]">Estado:</span>
+                  <span className={`ml-2 ${selectedProject.isActive ? 'text-[#4ADE80]' : 'text-[#DE5454]'}`}>
+                    {selectedProject.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="bg-[#0F1E19] rounded-xl p-6 text-center text-[#6B7F77]">
+            <p className="text-sm">
+              Selecciona un proyecto para ver el dashboard
+            </p>
+          </div>
+        )}
 
         {/* Placeholder for future content */}
         <div className="bg-[#0F1E19] rounded-xl p-6 text-center text-[#6B7F77]">

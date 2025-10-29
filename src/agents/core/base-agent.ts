@@ -6,14 +6,14 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { StateGraph, END } from "@langchain/langgraph";
 import { HumanMessage, BaseMessage } from "@langchain/core/messages";
 import { AgentConfig, AgentState, AgentResult, AgentExecutionMetadata, AgentStateAnnotation } from "./types";
-import { MCPClient } from "../tools/mcp-client";
+import { MCPClient } from "./mcp-client";
 
 export abstract class BaseAgent {
-  protected config: AgentConfig;
-  protected tools: DynamicStructuredTool[] = [];
-  protected graph?: StateGraph<typeof AgentStateAnnotation.spec>;
-  protected metadata: AgentExecutionMetadata;
-  protected mcpClients: MCPClient[] = [];
+  config: AgentConfig;
+  tools: DynamicStructuredTool[] = [];
+  graph?: StateGraph<typeof AgentStateAnnotation.spec>;
+  metadata: AgentExecutionMetadata;
+  mcpClients: MCPClient[] = [];
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -39,15 +39,15 @@ export abstract class BaseAgent {
    * Inicializa el agente
    */
   async initialize(): Promise<void> {
-    // Inicializar servidores MCP configurados
+    // Primero definir herramientas base
+    this.tools = this.defineTools();
+    
+    // Luego inicializar servidores MCP y agregar sus herramientas
     if (this.config.mcpServers && this.config.mcpServers.length > 0) {
       await this.initializeMCPServers();
     }
-
-    // Definir herramientas base
-    this.tools = this.defineTools();
     
-    // Construir grafo
+    // Finalmente construir grafo con todas las herramientas disponibles
     this.graph = this.buildGraph();
     
     if (this.config.verbose) {
@@ -55,6 +55,7 @@ export abstract class BaseAgent {
       if (this.mcpClients.length > 0) {
         console.log(`[${this.config.name}] Connected to ${this.mcpClients.length} MCP server(s)`);
       }
+      console.log(`[${this.config.name}] Available tools: ${this.tools.map(t => t.name).join(', ')}`);
     }
   }
 
@@ -66,10 +67,19 @@ export abstract class BaseAgent {
       return;
     }
 
+    console.log(`[${this.config.name}] Starting MCP servers initialization...`);
+    console.log(`[${this.config.name}] Total MCP servers to connect: ${this.config.mcpServers.length}`);
+
     for (const mcpConfig of this.config.mcpServers) {
       try {
         if (this.config.verbose) {
-          console.log(`[${this.config.name}] Connecting to MCP server: ${mcpConfig.command}...`);
+          const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
+          console.log(`[${this.config.name}] 🔌 Connecting to MCP server (${mcpConfig.type})...`);
+          console.log(`[${this.config.name}] Target: ${identifier}`);
+          
+          if (mcpConfig.type === 'stdio') {
+            console.log(`[${this.config.name}] Args: ${JSON.stringify(mcpConfig.args || [])}`);
+          }
         }
 
         const mcpClient = new MCPClient(mcpConfig);
@@ -77,19 +87,34 @@ export abstract class BaseAgent {
 
         // Convertir herramientas MCP a LangChain
         const mcpTools = await mcpClient.toLangChainTools();
-        this.tools.push(...mcpTools);
+        
+        if (mcpTools.length === 0) {
+          const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
+          console.warn(`[${this.config.name}] ⚠️  No tools received from MCP server ${identifier}`);
+        } else {
+          this.tools.push(...mcpTools);
+          console.log(`[${this.config.name}] ✅ Added ${mcpTools.length} MCP tools:`, mcpTools.map(t => t.name).join(', '));
+        }
 
         // Guardar cliente para cleanup posterior
         this.mcpClients.push(mcpClient);
 
         if (this.config.verbose) {
-          console.log(`[${this.config.name}] ✅ Connected to MCP server, loaded ${mcpTools.length} tools`);
+          console.log(`[${this.config.name}] ✅ Successfully connected to MCP server`);
         }
       } catch (error) {
-        console.error(`[${this.config.name}] ⚠️  Failed to connect to MCP server ${mcpConfig.command}:`, error);
+        const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
+        console.error(`[${this.config.name}] ❌ Failed to connect to MCP server ${identifier}:`);
+        console.error(error);
+        if (error instanceof Error) {
+          console.error(`[${this.config.name}] Error message: ${error.message}`);
+          console.error(`[${this.config.name}] Error stack:`, error.stack);
+        }
         // Continuar sin este servidor MCP
       }
     }
+
+    console.log(`[${this.config.name}] MCP initialization complete. Total tools now: ${this.tools.length}`);
   }
 
   /**

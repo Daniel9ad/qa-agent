@@ -40,9 +40,16 @@ export interface ToolConfig {
  * Configuración del servidor MCP
  */
 export interface MCPServerConfig {
-  command: string;
+  // Para conexión stdio (legacy - lanzar proceso)
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
+  
+  // Para conexión HTTP (nuevo - conectar a servidor existente)
+  url?: string;  // URL del servidor MCP (ej: http://localhost:3001)
+  
+  // Tipo de conexión
+  type: 'stdio' | 'http';
 }
 
 /**
@@ -50,13 +57,12 @@ export interface MCPServerConfig {
  */
 export interface AgentConfig {
   name: string;
-  description: string;
   model?: string;
   temperature?: number;
   maxIterations?: number;
   tools: ToolConfig[];
   verbose?: boolean;
-  mcpServers?: MCPServerConfig[];  // Servidores MCP que el agente debe usar
+  mcpServers?: MCPServerConfig[];
 }
 
 /**

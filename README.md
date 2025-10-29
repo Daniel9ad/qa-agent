@@ -17,19 +17,22 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 ## ✨ Características Principales
 
 ### 🤖 Sistema de Agentes con LangGraph
-- **Arquitectura React Agent Pattern**: Agentes que razonan, actúan y sintetizan resultados
+- **🆕 React Agent Pattern (Refactored)**: Usa `createReactAgent` de LangGraph prebuilt - simple y potente
 - **Google Gemini Integration**: Usa Google Gemini como LLM para razonamiento inteligente
 - **MCP Protocol Support**: Conecta a servidores MCP (Model Context Protocol) para herramientas externas
 - **Playwright Integration**: Automatización web completa vía MCP
 - **Extensible y Modular**: Fácil agregar nuevos agentes y herramientas
 - **Type-Safe**: TypeScript completo con validación Zod
 - **Monitoreo Completo**: Tracking de ejecución, métricas y logging
+- **🆕 Python-Compatible**: Mismo patrón que `create_react_agent` de Python
 
 ### 🎯 Agente Implementado: ContextAnalyzer
 Agente especializado en análisis de contexto que:
+- **🆕 Simplified Implementation**: Refactorizado con `createReactAgent` (47% menos código)
 - **LLM Powered**: Usa Google Gemini para razonamiento y síntesis inteligente
 - **Web Automation**: Acceso a herramientas de Playwright vía MCP
 - **Multi-Tool**: Combina herramientas simuladas y MCP
+- **Autonomous Decision Making**: El agente decide qué herramientas usar y cuándo
 - Analiza información en profundidad
 - Busca datos relevantes
 - Procesa y estructura resultados
@@ -56,7 +59,8 @@ Agente especializado en análisis de contexto que:
 
 - **[QUICKSTART.md](./QUICKSTART.md)** - Inicio rápido en 5 minutos
 - **[GOOGLE_GEMINI_MCP_GUIDE.md](./GOOGLE_GEMINI_MCP_GUIDE.md)** - Guía de Google Gemini + MCP
-- **[MCP_REFACTORING.md](./MCP_REFACTORING.md)** - 🆕 Configuración MCP automática por agente
+- **[MCP_HTTP_CONNECTIONS.md](./MCP_HTTP_CONNECTIONS.md)** - 🆕 Conexiones HTTP a servidores MCP
+- **[MCP_REFACTORING.md](./MCP_REFACTORING.md)** - Configuración MCP automática por agente
 - **[AGENTS_ARCHITECTURE.md](./AGENTS_ARCHITECTURE.md)** - Arquitectura completa del sistema
 - **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Resumen de implementación
 - **[FLOW_DIAGRAM.md](./FLOW_DIAGRAM.md)** - Diagramas de flujo del sistema
@@ -139,11 +143,42 @@ const result = await agent.run('Tu prompt aquí');
 console.log(result);
 ```
 
+### 🆕 React Agent Pattern (Nuevo)
+
+El agente ahora usa `createReactAgent` de LangGraph, similar al patrón de Python:
+
+```typescript
+// Python equivalent:
+// from langgraph.prebuilt import create_react_agent
+// agent = create_react_agent(model, tools, prompt=SYSTEM_PROMPT)
+
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+
+const agent = createReactAgent({
+  llm: model,           // Google Gemini
+  tools: tools,         // Herramientas simulated + MCP
+  messageModifier: systemPrompt,
+}).withConfig({
+  recursionLimit: 20,   // Límite de iteraciones
+});
+```
+
+**Beneficios del nuevo patrón:**
+- ✅ **47% menos código**: De ~450 líneas a ~240 líneas
+- ✅ **Más mantenible**: Usa implementación estándar de LangGraph
+- ✅ **Compatible con Python**: Mismo patrón que `create_react_agent`
+- ✅ **ReAct automático**: Reason → Act → Observe loop incorporado
+- ✅ **Más fácil depurar**: Sin grafo manual complejo
+
+**Ver documentación completa:** [REACT_AGENT_REFACTORING.md](./REACT_AGENT_REFACTORING.md)
+
+**Ejemplos de uso:** [src/agents/examples-react.ts](./src/agents/examples-react.ts)
+
 ## 🔧 Tecnologías
 
 - **Framework**: Next.js 15 + React 19
-- **AI/Agents**: LangGraph + LangChain
-- **LLM**: Google Gemini (gemini-1.5-flash, gemini-1.5-pro)
+- **AI/Agents**: LangGraph + LangChain (createReactAgent)
+- **LLM**: Google Gemini (gemini-2.5-flash, gemini-1.5-pro)
 - **MCP Protocol**: Model Context Protocol SDK
 - **Automation**: Playwright (via MCP)
 - **Lenguaje**: TypeScript
@@ -206,12 +241,45 @@ NEXTAUTH_URL=http://localhost:3000
 # Obtén tu API key en: https://makersuite.google.com/app/apikey
 GOOGLE_API_KEY=tu_google_api_key
 
+# Servidores MCP (REQUERIDO para herramientas MCP)
+# URLs de los servidores MCP que ya están corriendo
+# Incluye el endpoint completo (/sse o /mcp)
+PLAYWRIGHT_MCP_URL=http://localhost:3001/sse
+
 # LangChain (Opcional - para tracing)
 # LANGCHAIN_TRACING_V2=true
 # LANGCHAIN_API_KEY=tu_langchain_api_key
 ```
 
-**🔑 Paso Importante:** Configura `GOOGLE_API_KEY` para que el agente use Gemini como LLM.
+**🔑 Pasos Importantes:**
+1. Configura `GOOGLE_API_KEY` para que el agente use Gemini como LLM
+2. Configura `PLAYWRIGHT_MCP_URL` con la URL de tu servidor MCP
+3. Inicia los servidores MCP antes de usar el agente (ver siguiente sección)
+
+## 🎛️ Iniciar Servidores MCP
+
+### Windows (PowerShell)
+```powershell
+# Iniciar servidores MCP
+.\start-mcp-servers.ps1
+
+# Detener servidores MCP
+.\stop-mcp-servers.ps1
+```
+
+### Linux/Mac
+```bash
+# Dar permisos de ejecución
+chmod +x start-mcp-servers.sh stop-mcp-servers.sh
+
+# Iniciar servidores MCP
+./start-mcp-servers.sh
+
+# Detener servidores MCP
+./stop-mcp-servers.sh
+```
+
+Los servidores MCP quedarán corriendo en segundo plano y estarán disponibles para todos los agentes. Ver [MCP_HTTP_CONNECTIONS.md](./MCP_HTTP_CONNECTIONS.md) para más detalles.
 
 ## 🚧 Próximos Pasos
 

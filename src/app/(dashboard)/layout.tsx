@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import type { Project } from "@/types";
+import { useAppDispatch, useAppSelector } from "@/hooks/use-store";
+import { setProjects, setSelectedProject } from "@/lib/redux/features/projectSlice";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string>("");
+  const dispatch = useAppDispatch();
+  const { projects, selectedProjectId } = useAppSelector((state) => state.project);
   const [loading, setLoading] = useState(true);
 
   const fetchProjects = async () => {
@@ -29,12 +30,8 @@ export default function DashboardLayout({
           isActive: p.isActive,
         }));
         
-        setProjects(projectsList);
-        
-        // Establecer el primer proyecto como activo si no hay uno activo
-        if (projectsList.length > 0 && !activeProjectId) {
-          setActiveProjectId(projectsList[0].id);
-        }
+        // Guardar proyectos en Redux
+        dispatch(setProjects(projectsList));
       }
     } catch (error) {
       console.error("Error al cargar proyectos:", error);
@@ -47,6 +44,11 @@ export default function DashboardLayout({
     fetchProjects();
   }, []);
 
+  const handleProjectChange = (projectId: string) => {
+    // Actualizar el proyecto seleccionado en Redux
+    dispatch(setSelectedProject(projectId));
+  };
+
   if (loading) {
     return <LoadingScreen message="Cargando proyectos" />;
   }
@@ -55,8 +57,8 @@ export default function DashboardLayout({
     <div className="flex h-screen overflow-hidden bg-[#0A1612]">
       <Sidebar
         projects={projects}
-        activeProjectId={activeProjectId}
-        onProjectChange={setActiveProjectId}
+        activeProjectId={selectedProjectId || ""}
+        onProjectChange={handleProjectChange}
         onProjectCreated={fetchProjects}
       />
       <main className="flex-1 min-w-0 flex flex-col">

@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # Servidor MCP de Playwright
+  playwright-mcp:
+    image: node:20-alpine
+    container_name: playwright-mcp
+    command: npx -y @playwright/mcp --port 3001
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - mcp-logs:/app/logs
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Servidor MCP de Context7 (ejemplo - descomentar si lo necesitas)
+  # context7-mcp:
+  #   image: node:20-alpine
+  #   container_name: context7-mcp
+  #   command: npx -y @context7/mcp --port 3002
+  #   ports:
+  #     - "3002:3002"
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=production
+  #   volumes:
+  #     - mcp-logs:/app/logs
+  #   networks:
+  #     - mcp-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+
+  # Servidor MCP personalizado (ejemplo - descomentar si lo necesitas)
+  # custom-mcp:
+  #   build:
+  #     context: ./path/to/your/mcp-server
+  #     dockerfile: Dockerfile
+  #   container_name: custom-mcp
+  #   ports:
+  #     - "3003:3003"
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=production
+  #     - PORT=3003
+  #   volumes:
+  #     - mcp-logs:/app/logs
+  #   networks:
+  #     - mcp-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+
+volumes:
+  mcp-logs:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge

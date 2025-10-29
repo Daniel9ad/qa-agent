@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContextAnalyzerAgent } from '@/agents';
+import { RouteAgent } from '@/agents';
 
 export async function POST(request: NextRequest) {
-  let agent: ContextAnalyzerAgent | null = null;
+  let agent: RouteAgent | null = null;
 
   try {
     const body = await request.json();
-    const { input, config, googleApiKey } = body;
+    const { input, config } = body;
 
     if (!input) {
       return NextResponse.json(
@@ -16,16 +16,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear el agente con configuración personalizada (si se proporciona)
-    agent = new ContextAnalyzerAgent(config);
+    agent = new RouteAgent(config);
     
     // Inicializar el modelo LLM de Google si se proporciona API key
-    const apiKey = googleApiKey || process.env.GOOGLE_API_KEY;
-    if (apiKey) {
-      agent.initializeModel(apiKey);
-    }
+    const apiKey = process.env.GOOGLE_API_KEY;
+    agent.initializeModel(apiKey);
     
     // Inicializar el agente
-    // Esto automáticamente conectará a los servidores MCP configurados
     await agent.initialize();
     
     // Ejecutar el agente
@@ -42,7 +39,7 @@ export async function POST(request: NextRequest) {
       metadata,
     });
   } catch (error) {
-    console.error('Error executing context analyzer agent:', error);
+    console.error('Error executing RouteAgent:', error);
     
     // Limpiar recursos en caso de error
     if (agent) {
