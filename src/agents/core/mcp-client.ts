@@ -168,9 +168,24 @@ export class MCPClient {
       return [];
     }
     
+    // Filtrar herramientas si se especificó allowedTools
+    let toolsToConvert = mcpTools;
+    if (this.config.allowedTools && this.config.allowedTools.length > 0) {
+      console.log(`[MCP] Filtering tools. Allowed: ${this.config.allowedTools.join(', ')}`);
+      toolsToConvert = mcpTools.filter(tool => 
+        this.config.allowedTools!.includes(tool.name)
+      );
+      console.log(`[MCP] Filtered ${mcpTools.length} tools down to ${toolsToConvert.length} allowed tools`);
+      
+      if (toolsToConvert.length === 0) {
+        console.warn(`[MCP] ⚠️  No tools matched the allowed list`);
+        return [];
+      }
+    }
+    
     const langchainTools: DynamicStructuredTool[] = [];
 
-    for (const tool of mcpTools) {
+    for (const tool of toolsToConvert) {
       try {
         console.log(`[MCP] Converting tool: ${tool.name}`);
         
@@ -212,7 +227,7 @@ export class MCPClient {
       }
     }
 
-    console.log(`[MCP] 🎉 Converted ${langchainTools.length}/${mcpTools.length} tools to LangChain format`);
+    console.log(`[MCP] 🎉 Converted ${langchainTools.length}/${toolsToConvert.length} tools to LangChain format`);
     return langchainTools;
   }
 

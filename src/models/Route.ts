@@ -2,7 +2,9 @@ import mongoose, { Schema, models, Document } from 'mongoose';
 
 export interface IRoute extends Document {
   projectId: mongoose.Types.ObjectId;
+  path: string;
   url: string;
+  title?: string;
   description: string;
   createdAt: Date;
   updatedAt: Date;
@@ -16,16 +18,27 @@ const RouteSchema = new Schema<IRoute>(
       required: [true, 'El ID del proyecto es requerido'],
       index: true,
     },
+    path: {
+      type: String,
+      required: [true, 'La ruta es requerida'],
+      trim: true,
+      maxlength: [500, 'La ruta no puede exceder 500 caracteres'],
+    },
     url: {
       type: String,
       required: [true, 'La URL de la ruta es requerida'],
       trim: true,
       maxlength: [500, 'La URL no puede exceder 500 caracteres'],
     },
+    title: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'El título no puede exceder 500 caracteres'],
+    },
     description: {
       type: String,
       trim: true,
-      maxlength: [1000, 'La descripción no puede exceder 1000 caracteres'],
+      maxlength: [10000, 'La descripción no puede exceder 10000 caracteres'],
       default: '',
     },
   },

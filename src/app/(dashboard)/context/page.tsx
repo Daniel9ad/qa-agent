@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle2, XCircle, Edit, RefreshCw } from 'lucide-react'
 import {
@@ -37,6 +37,13 @@ interface AgentMetadata {
   status: 'running' | 'completed' | 'failed' | 'cancelled';
 }
 
+interface ProgressEvent {
+  step: string;
+  message: string;
+  details?: any;
+  timestamp?: string;
+}
+
 export default function ContextPage() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -44,7 +51,17 @@ export default function ContextPage() {
   const [metadata, setMetadata] = useState<AgentMetadata | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
   const [loadingRoutes, setLoadingRoutes] = useState(true)
+  const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([])
+  const [currentIteration, setCurrentIteration] = useState(0)
+  const progressContainerRef = useRef<HTMLDivElement>(null)
   const { selectedProject, selectedProjectId } = useAppSelector((state) => state.project);
+  
+  // Auto-scroll al último evento
+  useEffect(() => {
+    if (progressContainerRef.current) {
+      progressContainerRef.current.scrollTop = progressContainerRef.current.scrollHeight;
+    }
+  }, [progressEvents]);
   
   // Cargar rutas al montar el componente
   useEffect(() => {
@@ -75,6 +92,8 @@ export default function ContextPage() {
     setIsLoading(true)
     setResult(null)
     setMetadata(null)
+    setProgressEvents([])
+    setCurrentIteration(0)
     
     try {
       // Construir el listado de rutas existentes
@@ -88,32 +107,112 @@ export default function ContextPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: `Ve a ${selectedProject?.url} y explora a detalle este web, obten (5) rutas y guadarlas con tu herramienta para guardar rutas, este es el proyecto ID: ${selectedProjectId}${existingRoutesText}`,
+          input: `Ve a ${selectedProject?.url} y explora a detalle este web, obten (2) rutas y guadarlas con tu herramienta para guardar rutas, este es el proyecto ID: ${selectedProjectId}${existingRoutesText}`,
           config: {
             verbose: true,
           },
         }),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Error al ejecutar el agente');
+        throw new Error('Error al ejecutar el agente');
       }
 
-      setResult(data.result);
-      setMetadata(data.metadata);
-      
-      // Recargar las rutas después de escanear
-      await fetchRoutes()
+      // Leer el stream de SSE
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No se pudo obtener el stream de respuesta');
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+
+          const eventMatch = line.match(/^event: (.+)$/m);
+          const dataMatch = line.match(/^data: (.+)$/m);
+
+          if (eventMatch && dataMatch) {
+            const eventType = eventMatch[1];
+            const eventData = JSON.parse(dataMatch[1]);
+
+            switch (eventType) {
+              case 'start':
+                setProgressEvents(prev => [...prev, {
+                  step: 'start',
+                  message: eventData.message,
+                  timestamp: eventData.timestamp,
+                }]);
+                break;
+
+              case 'progress':
+                setProgressEvents(prev => [...prev, {
+                  step: eventData.step,
+                  message: eventData.message,
+                  details: eventData.details,
+                  timestamp: new Date().toISOString(),
+                }]);
+                
+                // Actualizar contador de iteraciones
+                if (eventData.details?.iteration) {
+                  setCurrentIteration(eventData.details.iteration);
+                }
+                break;
+
+              case 'complete':
+                setResult(eventData.result);
+                setMetadata(eventData.metadata);
+                setIsLoading(false);
+                setProgressEvents(prev => [...prev, {
+                  step: 'complete',
+                  message: 'Proceso completado exitosamente',
+                  timestamp: eventData.timestamp,
+                }]);
+                // Recargar las rutas después de completar
+                await fetchRoutes();
+                break;
+
+              case 'error':
+                setResult({
+                  success: false,
+                  error: eventData.details,
+                });
+                setIsLoading(false);
+                setProgressEvents(prev => [...prev, {
+                  step: 'error',
+                  message: eventData.error,
+                  details: eventData.details,
+                  timestamp: eventData.timestamp,
+                }]);
+                break;
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
       setResult({
         success: false,
         error: error instanceof Error ? error.message : 'Error desconocido',
       });
-    } finally {
       setIsLoading(false);
+      setProgressEvents(prev => [...prev, {
+        step: 'error',
+        message: 'Error en la conexión',
+        details: error instanceof Error ? error.message : 'Error desconocido',
+        timestamp: new Date().toISOString(),
+      }]);
     }
   }
 
@@ -122,6 +221,7 @@ export default function ContextPage() {
     setIsLoading(false)
     setResult(null)
     setMetadata(null)
+    setProgressEvents([])
   }
 
   // const getStatusBadge = (explored: boolean) => {
@@ -239,7 +339,7 @@ export default function ContextPage() {
 
       {/* Scanning Dialog */}
       <Dialog open={isOpen} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-[#0F1E19] border-[#1A2E26]" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto bg-[#0F1E19] border-[#1A2E26]" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-[#E5F5ED]">
               {isLoading ? 'Escaneando Rutas...' : result?.success ? 'Escaneo Completado' : 'Error en el Escaneo'}
@@ -254,15 +354,144 @@ export default function ContextPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <Loader2 className="h-12 w-12 animate-spin text-[#4ADE80]" />
-              <p className="text-sm text-[#6B7F77]">
-                Esto puede tomar algunos minutos...
-              </p>
+          {/* Progress Events Stream */}
+          {progressEvents.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-[#E5F5ED] flex items-center gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} text-[#4ADE80]`} />
+                  Proceso en tiempo real
+                </h3>
+                {isLoading && currentIteration > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-[#1F3D32] rounded-full">
+                    <div className="h-2 w-2 bg-[#4ADE80] rounded-full animate-pulse"></div>
+                    <span className="text-xs font-semibold text-[#4ADE80]">
+                      Iteración {currentIteration}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="bg-[#0A1612] rounded-lg p-4 max-h-96 overflow-y-auto space-y-2" ref={progressContainerRef}>
+                {progressEvents.map((event, index) => (
+                  <div 
+                    key={index}
+                    className={`text-sm border-l-2 pl-3 py-2 ${
+                      event.step === 'error' || event.step === 'mcp_error' || event.step === 'agent_error'
+                        ? 'border-red-500 bg-red-950/20' 
+                        : event.step === 'complete' || event.step === 'agent_complete' || event.step === 'mcp_complete'
+                        ? 'border-[#4ADE80] bg-[#1F3D32]/30'
+                        : event.step === 'tool_call' || event.step === 'mcp_connecting' || event.step === 'mcp_connected'
+                        ? 'border-[#DEA154] bg-[#3D2E1F]/30'
+                        : event.step === 'agent_iteration' || event.step === 'agent_thinking'
+                        ? 'border-blue-500 bg-blue-950/20'
+                        : event.step === 'mcp_warning'
+                        ? 'border-yellow-500 bg-yellow-950/20'
+                        : 'border-[#2E4A3D] bg-[#1A2E26]/30'
+                    } rounded`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {event.details?.iteration && (
+                            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 bg-[#1F3D32] rounded text-xs font-bold text-[#4ADE80]">
+                              #{event.details.iteration}
+                            </span>
+                          )}
+                          <div className={`font-medium ${
+                            event.step === 'error' || event.step === 'mcp_error' || event.step === 'agent_error'
+                              ? 'text-red-400' 
+                              : event.step === 'complete' || event.step === 'agent_complete' || event.step === 'mcp_complete'
+                              ? 'text-[#4ADE80]'
+                              : event.step === 'tool_call' || event.step === 'mcp_connecting' || event.step === 'mcp_connected'
+                              ? 'text-[#DEA154]'
+                              : event.step === 'agent_iteration' || event.step === 'agent_thinking'
+                              ? 'text-blue-400'
+                              : event.step === 'mcp_warning'
+                              ? 'text-yellow-400'
+                              : 'text-[#9CA8A3]'
+                          }`}>
+                            {event.message}
+                          </div>
+                        </div>
+                        {event.details && (
+                          <div className="text-xs text-[#6B7F77] space-y-1">
+                            {event.details.messageType && (
+                              <div>Tipo: <span className="font-mono text-[#9CA8A3]">{event.details.messageType}</span></div>
+                            )}
+                            {event.details.totalMessages && (
+                              <div>Mensajes totales: {event.details.totalMessages}</div>
+                            )}
+                            {event.details.toolName && (
+                              <div>Herramienta: <span className="text-[#DEA154] font-mono">{event.details.toolName}</span></div>
+                            )}
+                            {event.details.toolCalls && event.details.toolCalls.length > 0 && (
+                              <div>Herramientas: <span className="font-mono">{event.details.toolCalls.join(', ')}</span></div>
+                            )}
+                            {event.details.preview && (
+                              <div className="mt-1 p-2 bg-[#0F1E19] rounded text-xs italic text-[#9CA8A3]">
+                                "{event.details.preview}..."
+                              </div>
+                            )}
+                            {event.details.duration && (
+                              <div>Duración: {(event.details.duration / 1000).toFixed(2)}s</div>
+                            )}
+                            {event.details.serverCount && (
+                              <div>Servidores MCP: {event.details.serverCount}</div>
+                            )}
+                            {event.details.toolCount && (
+                              <div>Herramientas agregadas: {event.details.toolCount}</div>
+                            )}
+                            {event.details.tools && event.details.tools.length > 0 && (
+                              <div className="mt-1">
+                                <div className="font-medium text-[#9CA8A3] mb-1">Herramientas MCP:</div>
+                                <div className="pl-2 space-y-0.5">
+                                  {event.details.tools.map((tool: string, i: number) => (
+                                    <div key={i} className="text-[#4ADE80] font-mono">• {tool}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {event.details.identifier && (
+                              <div>Servidor: <span className="font-mono text-[#9CA8A3]">{event.details.identifier}</span></div>
+                            )}
+                            {event.details.content && (
+                              <div className="mt-1 p-2 bg-[#0F1E19] rounded text-xs font-mono">
+                                {event.details.content}
+                              </div>
+                            )}
+                            {event.details.args && (
+                              <div className="mt-1 p-2 bg-[#0F1E19] rounded text-xs font-mono overflow-x-auto">
+                                {JSON.stringify(event.details.args, null, 2)}
+                              </div>
+                            )}
+                            {event.details.error && (
+                              <div className="mt-1 p-2 bg-red-950/50 rounded text-xs text-red-300">
+                                {event.details.error}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {event.timestamp && (
+                        <div className="text-xs text-[#6B7F77] whitespace-nowrap">
+                          {new Date(event.timestamp).toLocaleTimeString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex items-center justify-center py-4 gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#4ADE80]" />
+                    <span className="text-sm text-[#9CA8A3]">Procesando...</span>
+                  </div>
+                )}
+              </div>
             </div>
-          ) : result ? (
-            <div className="space-y-4">
+          )}
+
+          {!isLoading && result && (
+            <div className="space-y-4 mt-4">
               {/* Estado del resultado */}
               <div className="flex items-center gap-2">
                 {result.success ? (
@@ -302,31 +531,6 @@ export default function ContextPage() {
                 </div>
               )}
 
-              {/* Mensajes del agente */}
-              {result.messages && result.messages.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-[#E5F5ED]">Mensajes del Agente</h3>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {result.messages.map((message: any, index: number) => (
-                      <div 
-                        key={index}
-                        className="bg-[#1A2E26] rounded-lg p-3 text-sm"
-                      >
-                        <div className="font-medium text-[#4ADE80] mb-1">
-                          {message.constructor?.name || 'Message'} #{index + 1}
-                        </div>
-                        <div className="text-[#9CA8A3] whitespace-pre-wrap">
-                          {typeof message.content === 'string' 
-                            ? message.content 
-                            : JSON.stringify(message.content, null, 2)
-                          }
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Error */}
               {result.error && (
                 <div className="bg-red-950 rounded-lg p-4 border border-red-800">
@@ -339,15 +543,16 @@ export default function ContextPage() {
                 </div>
               )}
             </div>
-          ) : null}
+          )}
 
           <DialogFooter>
             <Button 
               variant="outline" 
               onClick={handleCloseDialog}
+              disabled={isLoading}
               className="bg-[#1F3D32] hover:bg-[#2A4D3D] text-[#4ADE80] border-[#2E4A3D]"
             >
-              Cerrar
+              {isLoading ? 'Procesando...' : 'Cerrar'}
             </Button>
           </DialogFooter>
         </DialogContent>

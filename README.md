@@ -60,6 +60,7 @@ Agente especializado en análisis de contexto que:
 - **[QUICKSTART.md](./QUICKSTART.md)** - Inicio rápido en 5 minutos
 - **[GOOGLE_GEMINI_MCP_GUIDE.md](./GOOGLE_GEMINI_MCP_GUIDE.md)** - Guía de Google Gemini + MCP
 - **[MCP_HTTP_CONNECTIONS.md](./MCP_HTTP_CONNECTIONS.md)** - 🆕 Conexiones HTTP a servidores MCP
+- **[MESSAGE_LIMIT.md](./MESSAGE_LIMIT.md)** - 🆕 Gestión de contexto y límite de mensajes
 - **[MCP_REFACTORING.md](./MCP_REFACTORING.md)** - Configuración MCP automática por agente
 - **[AGENTS_ARCHITECTURE.md](./AGENTS_ARCHITECTURE.md)** - Arquitectura completa del sistema
 - **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Resumen de implementación
@@ -116,6 +117,7 @@ const response = await fetch('/api/agents/context-analyzer', {
     input: 'Navega a example.com y analiza el contenido',
     config: { 
       verbose: true,
+      messageLimit: 15, // 🆕 Limitar historial a últimos 15 mensajes de cada tipo
       // Opcionalmente sobrescribir configuración
       // model: 'gemini-1.5-pro',
       // temperature: 0.9
@@ -129,6 +131,7 @@ const { result, metadata } = await response.json();
 // ✅ Se conecta a Playwright MCP (configurado en el agente)
 // ✅ Usa Google Gemini para razonamiento
 // ✅ Ejecuta las herramientas necesarias
+// ✅ Mantiene solo los últimos N mensajes de cada tipo (evita sobrecarga de contexto)
 // ✅ Limpia recursos al terminar
 ```
 

@@ -50,6 +50,10 @@ export interface MCPServerConfig {
   
   // Tipo de conexión
   type: 'stdio' | 'http';
+  
+  // Filtro de herramientas: si se especifica, solo se cargarán estas herramientas
+  // Si está vacío o undefined, se cargarán todas las herramientas del servidor
+  allowedTools?: string[];
 }
 
 /**
@@ -63,6 +67,7 @@ export interface AgentConfig {
   tools: ToolConfig[];
   verbose?: boolean;
   mcpServers?: MCPServerConfig[];
+  messageLimit?: number; // Límite de mensajes de cada tipo a mantener en el historial (default: 10)
 }
 
 /**

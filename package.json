@@ -26,6 +26,7 @@
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "langchain": "^1.0.2",
     "lucide-react": "^0.546.0",
     "mongoose": "^8.19.1",
     "next": "15.5.5",

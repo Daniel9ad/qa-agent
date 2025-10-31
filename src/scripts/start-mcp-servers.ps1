@@ -42,8 +42,8 @@ function Start-MCPServer {
 
 # Iniciar servidor Playwright MCP
 Start-MCPServer -Name "Playwright-MCP" `
-                -Command "npx -y @playwright/mcp --port 3001" `
-                -Port 3001
+                -Command "npx -y @playwright/mcp --port 3002" `
+                -Port 3002
 
 # Descomentar para iniciar más servidores MCP
 # Start-MCPServer -Name "Context7-MCP" `

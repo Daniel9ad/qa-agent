@@ -56,7 +56,9 @@ export const routeListTool = () => {
           },
           routes: routes.map(route => ({
             id: route._id,
+            path: route.path,
             url: route.url,
+            title: route.title,
             description: route.description,
             createdAt: route.createdAt,
           })),

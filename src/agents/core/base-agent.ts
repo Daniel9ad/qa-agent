@@ -14,6 +14,7 @@ export abstract class BaseAgent {
   graph?: StateGraph<typeof AgentStateAnnotation.spec>;
   metadata: AgentExecutionMetadata;
   mcpClients: MCPClient[] = [];
+  public onProgress?: (event: any) => void;
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -70,10 +71,17 @@ export abstract class BaseAgent {
     console.log(`[${this.config.name}] Starting MCP servers initialization...`);
     console.log(`[${this.config.name}] Total MCP servers to connect: ${this.config.mcpServers.length}`);
 
+    this.onProgress?.({
+      step: 'mcp_init',
+      message: `Conectando a ${this.config.mcpServers.length} servidor(es) MCP...`,
+      details: { serverCount: this.config.mcpServers.length }
+    });
+
     for (const mcpConfig of this.config.mcpServers) {
       try {
+        const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
+        
         if (this.config.verbose) {
-          const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
           console.log(`[${this.config.name}] 🔌 Connecting to MCP server (${mcpConfig.type})...`);
           console.log(`[${this.config.name}] Target: ${identifier}`);
           
@@ -82,6 +90,12 @@ export abstract class BaseAgent {
           }
         }
 
+        this.onProgress?.({
+          step: 'mcp_connecting',
+          message: `Conectando a MCP: ${identifier}`,
+          details: { type: mcpConfig.type, identifier }
+        });
+
         const mcpClient = new MCPClient(mcpConfig);
         await mcpClient.connect();
 
@@ -89,11 +103,25 @@ export abstract class BaseAgent {
         const mcpTools = await mcpClient.toLangChainTools();
         
         if (mcpTools.length === 0) {
-          const identifier = mcpConfig.type === 'http' ? mcpConfig.url : mcpConfig.command;
           console.warn(`[${this.config.name}] ⚠️  No tools received from MCP server ${identifier}`);
+          this.onProgress?.({
+            step: 'mcp_warning',
+            message: `Sin herramientas del servidor MCP ${identifier}`,
+            details: { identifier }
+          });
         } else {
           this.tools.push(...mcpTools);
           console.log(`[${this.config.name}] ✅ Added ${mcpTools.length} MCP tools:`, mcpTools.map(t => t.name).join(', '));
+          
+          this.onProgress?.({
+            step: 'mcp_connected',
+            message: `Conectado a MCP: ${mcpTools.length} herramientas agregadas`,
+            details: { 
+              identifier,
+              toolCount: mcpTools.length,
+              tools: mcpTools.map(t => t.name)
+            }
+          });
         }
 
         // Guardar cliente para cleanup posterior
@@ -110,11 +138,29 @@ export abstract class BaseAgent {
           console.error(`[${this.config.name}] Error message: ${error.message}`);
           console.error(`[${this.config.name}] Error stack:`, error.stack);
         }
+        
+        this.onProgress?.({
+          step: 'mcp_error',
+          message: `Error conectando a MCP: ${identifier}`,
+          details: { 
+            identifier,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        });
         // Continuar sin este servidor MCP
       }
     }
 
     console.log(`[${this.config.name}] MCP initialization complete. Total tools now: ${this.tools.length}`);
+    
+    this.onProgress?.({
+      step: 'mcp_complete',
+      message: `Inicialización MCP completa: ${this.tools.length} herramientas totales`,
+      details: { 
+        totalTools: this.tools.length,
+        mcpServers: this.mcpClients.length
+      }
+    });
   }
 
   /**

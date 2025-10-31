@@ -15,10 +15,12 @@ export const routeCreationTool = () => {
     description: ROUTE_CREATION_TOOL,
     schema: z.object({
       projectId: z.string().describe("El ID del proyecto al que pertenece la ruta"),
-      url: z.string().describe("La URL de la ruta (puede ser relativa o absoluta)"),
-      description: z.string().optional().describe("Descripción de la funcionalidad o propósito de esta ruta"),
+      path: z.string().describe("La ruta relativa de la aplicación web (ej: '/login' o '/profile/[id]?var=[valor]')"),
+      url: z.string().describe("La URL completa de la ruta"),
+      title: z.string().describe("El título de la ruta"),
+      description: z.string().describe("Descripción completa de la funcionalidad o propósito de esta ruta"),
     }),
-    func: async ({ projectId, url, description = "" }) => {
+    func: async ({ projectId, path, url, description = "", title = "" }) => {
       try {
         // Conectar a la base de datos
         await connectDB();
@@ -40,8 +42,9 @@ export const routeCreationTool = () => {
             error: `La ruta "${url}" ya existe para este proyecto`,
             existingRoute: {
               id: existingRoute._id,
+              path: existingRoute.path,
               url: existingRoute.url,
-              description: existingRoute.description,
+              title: existingRoute.title,
             },
           }, null, 2);
         }
@@ -49,7 +52,9 @@ export const routeCreationTool = () => {
         // Crear la nueva ruta
         const newRoute = await Route.create({
           projectId,
+          path,
           url,
+          title,
           description,
         });
 
@@ -59,7 +64,9 @@ export const routeCreationTool = () => {
           route: {
             id: newRoute._id,
             projectId: newRoute.projectId,
+            path: newRoute.path,
             url: newRoute.url,
+            title: newRoute.title,
             description: newRoute.description,
             createdAt: newRoute.createdAt,
           },
