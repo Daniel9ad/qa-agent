@@ -6,6 +6,7 @@ export interface IRoute extends Document {
   url: string;
   title?: string;
   description: string;
+  id_vdb?: string; // ID o índice en la base de datos vectorial (Qdrant)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +41,11 @@ const RouteSchema = new Schema<IRoute>(
       trim: true,
       maxlength: [10000, 'La descripción no puede exceder 10000 caracteres'],
       default: '',
+    },
+    id_vdb: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'El ID VDB no puede exceder 500 caracteres'],
     },
   },
   {
